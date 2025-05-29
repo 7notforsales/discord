@@ -1,3 +1,8 @@
+export default async function handler(req, res) {
+  console.log("REQUEST BODY:", JSON.stringify(req.body));
+  if (req.method !== "POST") return res.status(405).end("Only POST");
+  …
+}
 import axios from "axios";
 
 export default async function handler(req, res) {
