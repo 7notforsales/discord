@@ -1,18 +1,30 @@
 import axios from "axios";
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).end("Only POST allowed");
+  if (req.method !== "POST") return res.status(405).end("Only POST");
 
-  const { event } = req.body || {};
-  const activities = event?.activity || [];
+  const body = req.body;
 
-  for (const a of activities) {
-    const amt = a.value;                 // already human-readable
-    const msg = `🔔 [${event.network}] ${amt} ${a.asset}\n`
-              + `from ${a.fromAddress}\n`
-              + `to   ${a.toAddress}`;
-
-    await axios.post(process.env.DISCORD_WEBHOOK_URL, { content: msg });
+  // 1) Address‐Activity hook (old style)
+  if (body.event?.activity) {
+    for (const a of body.event.activity) {
+      const amt = a.value / 1e18;
+      await axios.post(process.env.DISCORD_WEBHOOK_URL, {
+        content: `🔔 [${body.event.network}] ${amt} ETH from ${a.fromAddress}`
+      });
+    }
   }
-  res.status(200).end();
+
+  // 2) Custom GraphQL hook
+  else if (body.data?.block?.logs) {
+    for (const log of body.data.block.logs) {
+      const tx = log.transaction;
+      const amt = tx.value / 1e18;
+      await axios.post(process.env.DISCORD_WEBHOOK_URL, {
+        content: `🔔 [${tx.network}] ${amt} ${log.data.asset || "ETH"}\nfrom ${tx.from.address}\nto   ${tx.to.address}`
+      });
+    }
+  }
+
+  return res.status(200).end();
 }
