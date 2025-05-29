@@ -1,34 +1,37 @@
 import axios from "axios";
 
 export default async function handler(req, res) {
+  // 1) Respond OK to GET / UI tests
+  if (req.method === "GET" || Object.keys(req.body || {}).length === 0) {
+    return res.status(200).end("OK");
+  }
+
+  // 2) Only POST with payload get here
+  if (req.method !== "POST") {
+    return res.status(405).end("Only POST allowed");
+  }
+
   try {
-    console.log("REQUEST BODY:", JSON.stringify(req.body));
-
-    if (req.method !== "POST") {
-      return res.status(405).end("Only POST allowed");
-    }
-
     const body = req.body;
 
-    // Address-Activity payload
+    // 3a) Address-Activity events
     if (body.event?.activity) {
       for (const a of body.event.activity) {
         const amt = Number(a.value) / 1e18;
-        const msg = `🔔 [${body.event.network}] ${amt} ETH from ${a.fromAddress}\nto   ${a.toAddress}`;
-        await axios.post(process.env.DISCORD_WEBHOOK_URL, { content: msg });
+        await axios.post(process.env.DISCORD_WEBHOOK_URL, {
+          content: `🔔 [${body.event.network}] ${amt} ETH\nfrom ${a.fromAddress}\nto   ${a.toAddress}`,
+        });
       }
     }
-    // Custom GraphQL payload
+    // 3b) Custom-GraphQL block/log events
     else if (body.data?.block?.logs) {
       for (const log of body.data.block.logs) {
         const tx = log.transaction;
         const amt = Number(tx.value) / 1e18;
-        const msg = `🔔 [${tx.network}] ${amt} ${log.data.asset || "ETH"}\nfrom ${tx.from.address}\nto   ${tx.to.address}`;
-        await axios.post(process.env.DISCORD_WEBHOOK_URL, { content: msg });
+        await axios.post(process.env.DISCORD_WEBHOOK_URL, {
+          content: `🔔 [${tx.network}] ${amt} ${log.data.asset || "ETH"}\nfrom ${tx.from.address}\nto   ${tx.to.address}`,
+        });
       }
-    }
-    else {
-      console.error("Unknown payload shape:", JSON.stringify(body));
     }
 
     return res.status(200).end("OK");
