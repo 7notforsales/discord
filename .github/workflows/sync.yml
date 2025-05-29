@@ -3,16 +3,20 @@ name: Sync Alchemy Webhooks
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'  # every hour
+    - cron: "0 * * * *"  # every hour
 
 jobs:
   part1:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - uses: actions/setup-node@v3
-        with: node-version: '18'
+        with:
+          node-version: "18"
+
       - run: npm install
+
       - run: node sync-webhooks.js
         env:
           ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
@@ -23,9 +27,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - uses: actions/setup-node@v3
-        with: node-version: '18'
+        with:
+          node-version: "18"
+
       - run: npm install
+
       - run: node sync-webhooks.js
         env:
           ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
