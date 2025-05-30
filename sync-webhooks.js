@@ -22,7 +22,7 @@ const api = axios.create({
 });
 
 async function main() {
-  const { data: hooks } = await api.get("/get-webhooks");
+  const { data: hooks } = await api.post("/get-webhooks", {});
   for (const net of CHAINS) {
     const name = `tx-alerts-${net}-part${PART}`;
     let hook   = hooks.find(h => h.name === name);
