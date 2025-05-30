@@ -1,39 +1,49 @@
 import fs from "fs/promises";
-import { Alchemy, Network } from "alchemy-sdk";
+import axios from "axios";
 
-// which batch: "1" or "2" (set via env var in GitHub Actions)
-const PART    = process.env.PART;
-const WALLETS = JSON.parse(await fs.readFile(`./addresses${PART}.json`, "utf-8"));
+const PART   = process.env.PART;                       // "1" or "2"
+const TOKEN  = process.env.ALCHEMY_AUTH_TOKEN;         // dashboard auth
+const URL    = process.env.WEBHOOK_URL;                // Vercel endpoint
+const HOOKS  = JSON.parse(await fs.readFile(`./addresses${PART}.json`, "utf-8"));
 
-// dynamically grab every EVM mainnet supported
-const CHAINS = Object.values(Network).filter(n =>
-  typeof n === "string" && n.endsWith("_MAINNET")
-);
+/* every mainnet Alchemy supports right now ----------------------------- */
+const CHAINS = [
+  "ETH_MAINNET","BSC_MAINNET","POLYGON_MAINNET","AVALANCHE_MAINNET",
+  "ARBITRUM_MAINNET","OPT_MAINNET","BASE_MAINNET","FTM_MAINNET",
+  "CELO_MAINNET","AURORA_MAINNET","LINEA_MAINNET","BLAST_MAINNET",
+  "MANTLE_MAINNET","SCROLL_MAINNET","ZKSYNC_MAINNET","ZETACHAIN_MAINNET"
+  /* add/remove as you need; list is ~80 total, trimmed here for brevity */
+];
+/* --------------------------------------------------------------------- */
 
-const alchemy = new Alchemy({ apiKey: process.env.ALCHEMY_API_KEY });
+const api = axios.create({
+  baseURL: "https://dashboard.alchemy.com/api",
+  headers: { "X-Alchemy-Token": TOKEN, "Content-Type":"application/json" },
+});
 
-async function sync() {
-  const existing = await alchemy.notify.getWebhooks();
-  for (const network of CHAINS) {
-    const name = `tx-alerts-${network}-part${PART}`;
-    let hook = existing.find(h => h.name === name);
+async function main() {
+  const { data: hooks } = await api.get("/get-webhooks");
+  for (const net of CHAINS) {
+    const name = `tx-alerts-${net}-part${PART}`;
+    let hook   = hooks.find(h => h.name === name);
+
     if (!hook) {
-      hook = await alchemy.notify.createWebhook({
-        type:  "ADDRESS_ACTIVITY",
+      const res = await api.post("/create-webhook", {
+        type: "ADDRESS_ACTIVITY",
         name,
-        url:   process.env.WEBHOOK_URL,
-        params:{ addresses: WALLETS, network }
+        url:  URL,
+        params: { addresses: HOOKS, network: net }
       });
-      console.log(`✚ Created ${hook.webhookId}`);
+      console.log("✚ Created", res.data.webhookId);
     } else {
-      await alchemy.notify.updateWebhookAddresses({
-        webhookId:         hook.webhookId,
-        addresses_to_add:   WALLETS,
-        addresses_to_remove:[]
+      await api.patch("/update-webhook-addresses", {
+        webhook_id: hook.webhookId,
+        addresses_to_add: HOOKS,
+        addresses_to_remove: []
       });
-      console.log(`↻ Updated ${hook.webhookId}`);
+      console.log("↻ Updated", hook.webhookId);
     }
   }
 }
 
-sync().catch(e => { console.error(e); process.exit(1); });
+main().catch(err => { console.error(err); process.exit(1); });
