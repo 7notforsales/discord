@@ -38,15 +38,14 @@ export default async function handler(req, res) {
 /* Helper: map Alchemy network → native coin symbol */
 function nativeSymbol(network) {
   switch (network) {
-    case "BNB_MAINNET":       return "BNB";
+    case "BSC_MAINNET":       return "BNB";   // BNB Smart Chain
     case "POLYGON_MAINNET":   return "MATIC";
     case "AVALANCHE_MAINNET": return "AVAX";
     case "FTM_MAINNET":       return "FTM";
     case "CELO_MAINNET":      return "CELO";
-    case "ARBITRUM_MAINNET":  return "ETH";
-    case "OPT_MAINNET":       return "ETH";
+    case "ARBITRUM_MAINNET":  // fall through
+    case "OPT_MAINNET":
     case "BASE_MAINNET":      return "ETH";
-    // …add others if you like …
     default:                  return "ETH";
   }
 }
